@@ -1,0 +1,191 @@
+---
+title: "Bleaching correction"
+output:
+  html_document:
+    df_print: paged
+    theme: cerulean
+    toc: yes
+    toc_float:
+      collapsed: no
+  pdf_document:
+    toc: yes
+---
+
+# Choose Path and File
+```{r}
+#################################
+##        Variables            ##
+##                             ##
+##    Path                     ##
+##    File                     ##
+##                             ##
+#################################
+
+Path='C:/Users/m/Desktop/GCaMP_CogRx/2021.11.18_GCaMP5/7_Analysis/'
+
+File="Intensities_Smooth.csv"
+
+```
+
+# Set working directory (for .rmd scripts)
+```{r setup}
+
+knitr::opts_knit$set(root.dir = Path)
+
+```
+
+# Load File
+```{r}
+
+DATA <- read_csv(File, col_types = cols (Case = 'f'))
+
+```
+
+# Required libraries
+```{r}
+
+# library(readr)
+# library(plyr)
+# library(forcats)
+# library(lme4)
+# library(ggplot2)
+# library(stargazer)
+# library(lmerTest)
+# library(rcompanion)
+# library(dplyr)
+# library(tidyverse)
+# library(emmeans)
+# library(reshape2)
+# library(tidyr)
+# library(qwraps2)
+# library(arsenal)
+# library(table1)
+# library(plotrix)
+# library(ggResidpanel)
+# library(corrplot)
+# library(data.table)
+
+#install.packages("corrplot")
+#source("http://www.sthda.com/upload/rquery_cormat.r")
+
+#install.packages("GGally")
+#source("https://raw.githubusercontent.com/briatte/ggcorr/master/ggcorr.R")
+
+
+```
+
+# OPTIONAL
+# Check correction by plot
+```{r}
+
+#################################
+##        Variables            ##
+##                             ##
+##    Case list                ##
+##    Object                   ##
+##    Method                   ##
+##                             ##
+#################################
+
+  Cases_list<-levels(DATA$Case)
+  working_case<-subset(DATA, Case==Cases_list[4]) # Choose Case
+  working_cell <- subset (working_case, Object==20) # Choose Object
+  
+  
+  # METHOD 1 - Polynomial
+  polynomial=lm(working_cell$Intensity ~ poly(working_cell$Frame, 3, raw=TRUE)) # Choose degree (set to 3rd)
+  working_cell$Intensity_Corrected <- (working_cell$Intensity - polynomial$fitted.values)
+          
+  ggplot(working_cell, aes(x = Frame, y = Intensity)) +
+  geom_line () +
+  stat_smooth(method = "lm", formula = y ~ poly(x, 3, raw = TRUE), size = 1)
+
+  ggplot(working_cell, aes(x = Frame, y = Intensity_Corrected)) +
+  geom_line ()+
+  geom_hline(yintercept=quantile(working_cell$Intensity_Corrected, c(.50)))
+  
+  # METHOD 2 - Lineal (top-bottom)
+  TOP <- median(working_cell$Intensity [working_cell$Frame==min (working_cell$Frame)])
+  Bottom <- median(working_cell$Intensity [working_cell$Frame==max (working_cell$Frame)])
+  Decrease <- TOP-Bottom
+  Intensity_Correction = tibble (correction=(seq(Decrease,0, length.out=max (working_cell$Frame))))
+  working_cell$Intensity_Corrected2 <- (working_cell$Intensity - Intensity_Correction)[,1]
+  
+  working_cell$Intensity_Corrected2[working_cell$Intensity_Corrected2<0]<-0 
+  
+  ggplot(working_cell, aes(x = Frame, y = Intensity_Corrected2)) +
+  geom_line ()+
+  geom_hline(yintercept=quantile(working_cell$Intensity_Corrected2, c(.50)))
+  
+```
+
+# Bleaching correction
+```{r}
+# It may be long (~10 minutes per 3 cases of 1800 frames)
+
+#################################
+##        Variables            ##
+##                             ##
+##    Method                   ##
+##    Polynomial degree        ##
+##                             ##
+#################################
+
+Cases_list<-levels(DATA$Case)
+
+for (j in 1: length (Cases_list)){
+
+  working_case<-subset(DATA, Case==Cases_list[j])
+  
+  
+      for (i in 1:max (working_case$Object)) {
+  
+        working_cell <- subset (working_case, Object==i)
+        
+        
+        # METHOD 1 - Polynomial
+            # polynomial=lm(working_cell$Intensity ~ poly(working_cell$Frame, 3, raw=TRUE)) # Choose degree (set to 3rd)
+            # 
+            # working_cell$Intensity_Corrected <- (working_cell$Intensity - polynomial$fitted.values)
+        
+        # METHOD 2 - Lineal (top-bottom)
+            TOP <- median(working_cell$Intensity [working_cell$Frame==min (working_cell$Frame)])
+            Bottom <- median(working_cell$Intensity [working_cell$Frame==max (working_cell$Frame)])
+            Decrease <- TOP-Bottom
+            Intensity_Correction = tibble (correction=(seq(Decrease,0, length.out=max (working_cell$Frame))))
+            working_cell$Intensity_Corrected <- (working_cell$Intensity - Intensity_Correction)[,1]
+
+          if (i==1){
+                working_case_together <- working_cell
+                }  else {
+                working_case_together <- rbind (working_case_together, working_cell)
+                }
+      }
+  
+  
+  if (j==1){
+          Cases_together <- working_case_together
+          }  else {
+          Cases_together <- rbind (Cases_together, working_case_together)
+          }
+
+}
+
+
+ # All the Intensity.csv tables will have the same column.
+ Cases_together$Intensity<-NULL # So we remove the input Intensity
+ names(Cases_together)[names(Cases_together)=='Intensity_Corrected'] <- "Intensity" # And rename the smoothed. Only by the name of the file is known this is smoothed.  
+ 
+ # Set negative values to 0
+ Cases_together$Intensity[Cases_together$Intensity<0]<-0 
+
+ # Save table
+ # Can be changed to csv2 instead of csv
+ directory=getwd()
+ Filename=file.path(directory,paste(tools::file_path_sans_ext(File),'_BleachCorr.csv', sep=''))
+ write.csv (Cases_together, Filename, row.names = FALSE)
+  
+```
+
+    
+

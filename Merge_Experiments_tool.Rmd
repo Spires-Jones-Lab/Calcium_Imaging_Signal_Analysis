@@ -1,0 +1,118 @@
+---
+title: "Bleaching correction"
+output:
+  html_document:
+    df_print: paged
+    theme: cerulean
+    toc: yes
+    toc_float:
+      collapsed: no
+  pdf_document:
+    toc: yes
+---
+
+# Choose Path and File
+```{r}
+#################################
+##        Variables            ##
+##                             ##
+##    Path                     ##
+##    File                     ##
+##                             ##
+#################################
+
+Path1='C:/Users/m/Desktop/GCaMP_CogRx/2021.11.02_GCaMP4/7_Analysis/'
+File1="Intensities_Smooth_BleachCorr_Conditions_Summary_BaseTreat.csv"
+
+Path2='C:/Users/m/Desktop/GCaMP_CogRx/2021.11.18_GCaMP5/7_Analysis/'
+File2="Intensities_Smooth_BleachCorr_Conditions_Summary_BaseTreat.csv"
+
+Path3='C:/Users/m/Desktop/GCaMP_CogRx/2021.12.07_GCaMP6/7_Analysis/'
+File3="Intensities_Smooth_BleachCorr_Conditions_Summary_BaseTreat.csv"
+
+```
+
+
+# Required libraries
+```{r}
+
+library(readr)
+library(plyr)
+library(forcats)
+library(lme4)
+library(ggplot2)
+library(stargazer)
+library(lmerTest)
+library(rcompanion)
+library(dplyr)
+library(tidyverse)
+library(emmeans)
+library(reshape2)
+library(tidyr)
+library(qwraps2)
+library(arsenal)
+library(table1)
+library(plotrix)
+library(ggResidpanel)
+library(corrplot)
+library(data.table)
+
+#install.packages("corrplot")
+#source("http://www.sthda.com/upload/rquery_cormat.r")
+
+#install.packages("GGally")
+#source("https://raw.githubusercontent.com/briatte/ggcorr/master/ggcorr.R")
+
+
+```
+# Set working directory (for .rmd scripts)
+```{r setup}
+
+knitr::opts_knit$set(root.dir = Path1)
+
+```
+
+# Load File
+```{r}
+DATA1 <- read_csv(file.path(Path1,File1), col_types = cols (Case = 'f'))
+
+DATA2 <- read_csv(file.path(Path2,File2), col_types = cols (Case = 'f'))
+
+DATA3 <- read_csv(file.path(Path3,File3), col_types = cols (Case = 'f'))
+
+```
+
+
+```{r}
+
+ # DATA2$Max_Intensity_ratio_tukey<-NULL
+ # DATA2$Mean_Intensity_ratio_tukey<-NULL
+ # DATA2$Min_Intensity_ratio_tukey<-NULL
+
+# Ab+ Drug from the 3rd experiment is removed (really bad)
+DATA3 <- DATA3[!(DATA3$Abeta=='positive'&DATA3$Drug=='CT1812'),]
+
+
+DATA1$Experiment<-'1'
+DATA2$Experiment<-'2'  
+DATA3$Experiment<-'3'
+
+All_Experiments_BaseTreat <- rbind (DATA1, DATA2, DATA3)
+
+
+
+```
+
+
+
+```{r}
+
+ # Save table
+ # Can be changed to csv2 instead of csv
+ 
+ write.csv (All_Experiments_BaseTreat, 'All_Experiments_BaseTreat.csv', row.names = FALSE)
+  
+```
+
+    
+

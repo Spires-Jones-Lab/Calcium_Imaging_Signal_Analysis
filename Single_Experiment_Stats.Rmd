@@ -1,0 +1,361 @@
+---
+title: "Intensity analysis"
+output:
+  html_document:
+    df_print: paged
+    theme: cerulean
+    toc: yes
+    toc_float:
+      collapsed: no
+  pdf_document:
+    toc: yes
+---
+
+# Choose Path and File
+```{r}
+#################################
+##        Variables            ##
+##                             ##
+##    Path                     ##
+##    File                     ##
+##                             ##
+#################################
+
+Path='C:/Users/m/Desktop/GCaMP_CogRx/2021.12.07_GCaMP6/7_Analysis/'
+
+File="Intensities_Smooth_BleachCorr_Conditions.csv"
+
+```
+
+# Required libraries
+```{r}
+
+library(readr)
+library(plyr)
+library(forcats)
+library(lme4)
+library(ggplot2)
+library(stargazer)
+library(lmerTest)
+library(rcompanion)
+library(dplyr)
+library(tidyverse)
+library(emmeans)
+library(reshape2)
+library(tidyr)
+library(qwraps2)
+library(arsenal)
+library(table1)
+library(plotrix)
+library(ggResidpanel)
+library(corrplot)
+library(data.table)
+
+#install.packages("corrplot")
+#source("http://www.sthda.com/upload/rquery_cormat.r")
+
+#install.packages("GGally")
+#source("https://raw.githubusercontent.com/briatte/ggcorr/master/ggcorr.R")
+
+
+```
+
+# Set working directory (for .rmd scripts)
+```{r setup}
+
+knitr::opts_knit$set(root.dir = Path)
+
+```
+
+# Load File
+```{r}
+
+DATA <- read_csv(File, col_types = cols (Case = 'f'))
+
+```
+
+
+
+## Summarize by object and create ratios
+```{r}
+
+ 
+Cases_list<-levels(DATA$Case)
+
+for (j in 1: length (Cases_list)){
+
+ working_case<-subset(DATA, Case==Cases_list[j])
+ 
+ working_case$Case_treatment=as.character(working_case$Case) #will be changed to group them later
+ 
+ # Create a summary by cells and by Treatment
+  Summary_by_Treatment <-working_case %>%
+  group_by (Object, Treatment) %>%
+  
+  summarise (Case=Case[1],Abeta=Abeta[1], Drug=Drug[1], Object=Object[1],Mean_Intensity=mean(Intensity),  Max_Intensity=max(Intensity),Min_Intensity=min(Intensity), Mean_Area=mean(Area)) 
+
+
+ # Create a summary by cells for ratios
+  Summary_by_Cell <-working_case %>%
+ group_by (Object) %>%
+  
+  summarise (Case=Case[1],Abeta=Abeta[1], Drug=Drug[1], Object=Object[1], Mean_Area=mean(Area)) 
+
+  Added_Columns <- c('Mean_Intensity_ratio', 'Max_Intensity_ratio', 'Min_Intensity_ratio')
+Summary_by_Cell[ , Added_Columns] <- NA
+
+
+for (i in 1:max (Summary_by_Treatment$Object)) {
+  
+  working_cell <- subset (Summary_by_Treatment, Object==i)
+  
+
+  Summary_by_Cell$Mean_Intensity_ratio[i] <- (working_cell$Mean_Intensity[working_cell$Treatment=='treatment'] / working_cell$Mean_Intensity[working_cell$Treatment=='baseline'])
+  
+  Summary_by_Cell$Max_Intensity_ratio[i] <- (working_cell$Max_Intensity[working_cell$Treatment=='treatment'] / working_cell$Max_Intensity[working_cell$Treatment=='baseline'])
+  
+  Summary_by_Cell$Min_Intensity_ratio[i] <- (working_cell$Min_Intensity[working_cell$Treatment=='treatment'] / working_cell$Min_Intensity[working_cell$Treatment=='baseline'])
+  
+ 
+}
+
+
+  if (j==1){
+    All_Cases_summary<- Summary_by_Treatment
+  }  else {
+    All_Cases_summary<- rbind (All_Cases_summary, Summary_by_Treatment)
+  }
+
+
+  if (j==1){
+    All_Cases_ratio<- Summary_by_Cell
+  }  else {
+    All_Cases_ratio<- rbind (All_Cases_ratio, Summary_by_Cell)
+  }
+
+}
+
+#remove inf and nan 
+library(IDPmisc)
+All_Cases_summary <- NaRV.omit(All_Cases_summary)
+All_Cases_ratio <- NaRV.omit(All_Cases_ratio)
+
+# Create another summary to compare only absolute intensities of Baseline and Treatment
+All_Cases_BaseTreat <- All_Cases_summary[!(All_Cases_summary$Treatment=='ionomycine'| All_Cases_summary$Treatment=='EGTA'),]
+
+```
+
+# STATS
+
+## Absolute Intensities All Contitions (removed to simplify, by now not included Ionomycine and EGTA)
+
+
+## Absolute Intensities Baseline and Treated
+### 1.Max intensity
+```{r}
+                                  
+# Linear model + posthoc
+ME_peak_number2<- lmer(Max_Intensity~Abeta*Drug*Treatment+(1|Case),data = All_Cases_BaseTreat)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Transform to improve data
+# All_Cases_BaseTreat$Max_Intensity_ratio_tukey <- transformTukey(All_Cases_BaseTreat$Max_Intensity)
+# ME_peak_number2<- lmer(Max_Intensity_ratio_tukey~Abeta*Drug*Treatment+(1|Case),data = All_Cases_BaseTreat)
+# summary(ME_peak_number2)
+# resid_panel(ME_peak_number2)
+# anova(ME_peak_number2)
+# emmeans(ME_peak_number2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Boxplot
+All_Cases_BaseTreat %>%
+  ggplot( aes(x=Abeta, y=Max_Intensity, fill=Treatment)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Drug)
+
+# Boxplot
+All_Cases_BaseTreat %>%
+  ggplot( aes(x=Drug, y=Max_Intensity, fill=Abeta)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Treatment)
+
+    
+```
+
+### 2.Mean intensity
+```{r}
+                                  
+# Linear model + posthoc
+ME_peak_number2<- lmer(Mean_Intensity~Abeta*Drug*Treatment+(1|Case),data = All_Cases_BaseTreat)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Transform to improve data
+# All_Cases_BaseTreat$Mean_Intensity_ratio_tukey <- transformTukey(All_Cases_BaseTreat$Mean_Intensity)
+# ME_peak_number2<- lmer(Mean_Intensity_ratio_tukey~Abeta*Drug*Treatment+(1|Case),data = All_Cases_BaseTreat)
+# summary(ME_peak_number2)
+# resid_panel(ME_peak_number2)
+# anova(ME_peak_number2)
+# emmeans(ME_peak_number2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Boxplot
+All_Cases_BaseTreat %>%
+  ggplot( aes(x=Abeta, y=Mean_Intensity, fill=Treatment)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Drug)
+
+# Boxplot
+All_Cases_BaseTreat %>%
+  ggplot( aes(x=Drug, y=Mean_Intensity, fill=Abeta)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Treatment)
+
+    
+```
+
+### 3.Min intensity
+```{r}
+                                  
+# Linear model + posthoc
+ME_peak_number2<- lmer(Min_Intensity~Abeta*Drug*Treatment+(1|Case),data = All_Cases_BaseTreat)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Transform to improve data
+# All_Cases_BaseTreat$Min_Intensity_ratio_tukey <- transformTukey(All_Cases_BaseTreat$Min_Intensity)
+# ME_peak_number2<- lmer(Min_Intensity_ratio_tukey~Abeta*Drug*Treatment+(1|Case),data = All_Cases_BaseTreat)
+# summary(ME_peak_number2)
+# resid_panel(ME_peak_number2)
+# anova(ME_peak_number2)
+# emmeans(ME_peak_number2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Boxplot
+All_Cases_BaseTreat %>%
+  ggplot( aes(x=Abeta, y=Min_Intensity, fill=Treatment)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Drug)
+
+# Boxplot
+All_Cases_BaseTreat %>%
+  ggplot( aes(x=Drug, y=Min_Intensity, fill=Abeta)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Treatment)
+
+    
+```
+
+
+
+
+## Ratio Treatment/Baseline
+### 1.Max intensity
+```{r}
+                                  
+# Linear model + posthoc
+ME_peak_number2<- lmer(Max_Intensity_ratio~Abeta*Drug+(1|Case),data = All_Cases_ratio)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+#emmeans(ME_peak_number2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Transform to improve data
+# All_Cases_summary$Max_Intensity_ratio_tukey <- transformTukey(All_Cases_ratio$Max_Intensity_ratio)
+# ME_peak_number2<- lmer(Max_Intensity_ratio_tukey~Abeta*Drug+(1|Case),data = All_Cases_ratio)
+# summary(ME_peak_number2)
+# resid_panel(ME_peak_number2)
+# anova(ME_peak_number2)
+# #emmeans(ME_peak_number2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Boxplot
+All_Cases_ratio %>%
+  ggplot( aes(x=Abeta, y=Max_Intensity_ratio, fill=Drug)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)
+
+    
+```
+
+### 2.Min intensity
+```{r}
+                                  
+# Linear model + posthoc
+ME_peak_number2<- lmer(Min_Intensity_ratio~Abeta*Drug+(1|Case),data = All_Cases_ratio)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Transform to improve data
+# All_Cases_summary$Max_Intensity_ratio_tukey <- transformTukey(All_Cases_ratio$Max_Intensity_ratio)
+# ME_peak_number2<- lmer(Max_Intensity_ratio_tukey~Abeta*Drug+(1|Case),data = All_Cases_ratio)
+# summary(ME_peak_number2)
+# resid_panel(ME_peak_number2)
+# anova(ME_peak_number2)
+# #emmeans(ME_peak_number2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Boxplot
+All_Cases_ratio %>%
+  ggplot( aes(x=Abeta, y=Min_Intensity_ratio, fill=Drug)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)
+
+    
+```
+
+### 3.Mean intensity
+```{r}
+                                  
+# Linear model + posthoc
+ME_peak_number2<- lmer(Mean_Intensity_ratio~Abeta*Drug+(1|Case),data = All_Cases_ratio)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Transform to improve data
+# All_Cases_summary$Max_Intensity_ratio_tukey <- transformTukey(All_Cases_ratio$Max_Intensity_ratio)
+# ME_peak_number2<- lmer(Max_Intensity_ratio_tukey~Abeta*Drug+(1|Case),data = All_Cases_ratio)
+# summary(ME_peak_number2)
+# resid_panel(ME_peak_number2)
+# anova(ME_peak_number2)
+# #emmeans(ME_peak_number2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Boxplot
+All_Cases_ratio %>%
+  ggplot( aes(x=Abeta, y=Mean_Intensity_ratio, fill=Drug)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)
+
+```
+
+
+
+
+
+```{r}
+
+ # Save table
+ # Can be changed to csv2 instead of csv
+ directory=getwd()
+ Filename=file.path(directory,paste(tools::file_path_sans_ext(File),'_Summary_BaseTreat.csv', sep=''))
+ write.csv (All_Cases_BaseTreat, Filename, row.names = FALSE)
+ 
+ Filename2=file.path(directory,paste(tools::file_path_sans_ext(File),'_Summary_ratio.csv', sep=''))
+ write.csv (All_Cases_ratio, Filename2, row.names = FALSE)
+  
+```
+
+    
+

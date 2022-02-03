@@ -1,0 +1,178 @@
+---
+title: "Bleaching correction"
+output:
+  html_document:
+    df_print: paged
+    theme: cerulean
+    toc: yes
+    toc_float:
+      collapsed: no
+  pdf_document:
+    toc: yes
+---
+
+# Choose Path and File
+```{r}
+#################################
+##        Variables            ##
+##                             ##
+##    Path                     ##
+##    File                     ##
+##                             ##
+#################################
+
+Path='C:/Users/m/Desktop/GCaMP_CogRx/2021.11.02_GCaMP4/7_Analysis/'
+
+File="Intensities_Smooth_BleachCorr.csv"
+
+```
+
+# Set working directory (for .rmd scripts)
+```{r setup}
+
+knitr::opts_knit$set(root.dir = Path)
+
+```
+
+# Load File
+```{r}
+
+DATA <- read_csv(File, col_types = cols (Case = 'f'))
+
+```
+
+# Required libraries
+```{r}
+
+# library(readr)
+# library(plyr)
+# library(forcats)
+# library(lme4)
+# library(ggplot2)
+# library(stargazer)
+# library(lmerTest)
+# library(rcompanion)
+# library(dplyr)
+# library(tidyverse)
+# library(emmeans)
+# library(reshape2)
+# library(tidyr)
+# library(qwraps2)
+# library(arsenal)
+# library(table1)
+# library(plotrix)
+# library(ggResidpanel)
+# library(corrplot)
+# library(data.table)
+
+#install.packages("corrplot")
+#source("http://www.sthda.com/upload/rquery_cormat.r")
+
+#install.packages("GGally")
+#source("https://raw.githubusercontent.com/briatte/ggcorr/master/ggcorr.R")
+
+
+```
+
+## Split the cases by conditions and create variables
+```{r}
+ ###########################################
+ ##        Variables            
+ ##                             
+ ##   Data is split according to the treatments.
+ ##   Also are removed 200 frames (100 before 100 after treatment) to ensure the window.
+ ##
+ ##   Baseline 0-500
+ ##   Treatment (Drug or vehicle): 700-1100
+ ##   Ionomycine: 1300-1500
+ ##   EGTA: 1600-1800
+ ##
+ ##
+ ##   Also Abeta positive or negative and Drug or Vehicle is added as variable
+ ##
+ ############################################
+
+Cases_list<-levels(DATA$Case)
+
+for (j in 1: length (Cases_list)){
+
+ working_case<-subset(DATA, Case==Cases_list[j])
+ 
+ working_case$Case_treatment=as.character(working_case$Case) #will be changed to group them later
+ 
+
+     working_case$Treatment[working_case$Frame<500]<- 'baseline'
+     
+     working_case$Treatment[working_case$Frame >700 & working_case$Frame <1100]<- 'treatment'
+     
+     working_case$Treatment[working_case$Frame >1300 & working_case$Frame <1500]<- 'ionomycine'
+     
+     working_case$Treatment[working_case$Frame >1600 & working_case$Frame <1800]<- 'EGTA'
+          
+                                       
+     working_case$Case_treatment[working_case$Frame <500]<-  (paste(working_case$Case,'_baseline')[1]) 
+     
+     working_case$Case_treatment[working_case$Frame >700 & working_case$Frame <1100]<-  (paste(working_case$Case,'_treated')[1])  
+     
+     working_case$Case_treatment[working_case$Frame >1300 & working_case$Frame <1500]<-  (paste(working_case$Case,'_ionomicine')[1]) 
+     
+     working_case$Case_treatment[working_case$Frame >1600 & working_case$Frame <1800]<-  (paste(working_case$Case,'_EGTA')[1])     
+     
+     
+    if (grepl('-_',working_case$Case)[1]) {
+      working_case$Abeta = 'negative'
+    } else{
+      working_case$Abeta = 'positive'
+    }
+  
+    if (grepl('Drug',working_case$Case)[1]) {
+      working_case$Drug = 'CT1812'
+    } else{
+      working_case$Drug = 'vehicle'
+    }
+
+ 
+   if (j==1){
+    DATA_by_Treatment <- working_case
+  }  else {
+    DATA_by_Treatment <- rbind (DATA_by_Treatment, working_case)
+  } 
+ 
+}
+
+
+DATA_by_Treatment$Treatment=as.factor(DATA_by_Treatment$Treatment) # Make it a factor for later levels
+DATA_by_Treatment$Case_treatment=as.factor(DATA_by_Treatment$Case_treatment)
+DATA_by_Treatment=na.omit(DATA_by_Treatment) # Remove the NA Frames (baseline frames close to the treatment)
+
+
+```
+
+
+
+## OPTIONAL Plot all cases and cells by Treatment
+```{r}
+
+# All cells line plot
+  ggplot(DATA_by_Treatment, aes(x = Frame, y = Intensity, group = Object, color=Object)) +
+    geom_line()+
+     theme(legend.position="none")+
+  facet_wrap(~ Case+Treatment )
+ 
+ 
+```
+
+
+
+```{r}
+
+ # Save table
+ # Can be changed to csv2 instead of csv
+ directory=getwd()
+ Filename=file.path(directory,paste(tools::file_path_sans_ext(File),'_Conditions.csv', sep=''))
+ write.csv (DATA_by_Treatment, Filename, row.names = FALSE)
+  
+```
+
+    
+

@@ -1,0 +1,157 @@
+---
+title: "All synapses intensities"
+output:
+  html_document:
+    df_print: paged
+    theme: cerulean
+    toc: yes
+    toc_float:
+      collapsed: no
+  pdf_document:
+    toc: yes
+---
+
+# Choose Path and File
+```{r}
+#################################
+##        Variables            ##
+##                             ##
+##    Path                     ##
+##    File                     ##
+##                             ##
+#################################
+
+Path='C:/Users/m/Desktop/GCaMP_CogRx/2021.11.18_GCaMP5/7_Analysis/'
+
+File="Intensities.csv"
+
+```
+
+# load libraries
+```{r}
+
+# library(readr)
+# library(plyr)
+# library(forcats)
+# library(lme4)
+# library(ggplot2)
+# library(stargazer)
+# library(lmerTest)
+# library(rcompanion)
+# library(dplyr)
+# library(tidyverse)
+# library(emmeans)
+# library(reshape2)
+# library(tidyr)
+# library(qwraps2)
+# library(arsenal)
+# library(table1)
+# library(plotrix)
+# library(ggResidpanel)
+# library(corrplot)
+# library(data.table)
+
+#install.packages("corrplot")
+#source("http://www.sthda.com/upload/rquery_cormat.r")
+
+#install.packages("GGally")
+#source("https://raw.githubusercontent.com/briatte/ggcorr/master/ggcorr.R")
+
+
+```
+
+# Set working directory (for .rmd scripts)
+```{r setup}
+
+knitr::opts_knit$set(root.dir = Path)
+
+```
+
+# Load File
+```{r}
+
+DATA <- read_csv(File, col_types = cols (Case = 'f'))
+
+```
+
+# OPTIONAL
+# Check smooth
+```{r}
+
+#################################
+##        Variables            ##
+##                             ##
+##    Case list                ##
+##    Object                   ##
+##                             ##
+#################################
+  
+  Cases_list<-levels(DATA$Case)
+
+  working_case<-subset(DATA, Case==Cases_list[1]) # Choose Case
+  working_cell <- subset (working_case, Object==15) # Choose Object
+  
+  working_cell$IntensitySmooth <- ksmooth(working_cell$Frame, working_cell$Intensity, bandwidth = 10)$y # Choose the size of the smoothing
+ 
+  ggplot(working_cell, aes(x = Frame, y = Intensity)) +
+  geom_line () 
+
+  ggplot(working_cell, aes(x = Frame, y = IntensitySmooth)) +
+  geom_line ()
+  
+```
+
+# SMOOTH
+```{r}
+# It may be long (~10 minutes per 3 cases of 1800 frames)
+
+#################################
+##        Variables            ##
+##                             ##
+##    Bandwidth                ##
+##                             ##
+#################################
+
+Cases_list<-levels(DATA$Case)
+
+for (j in 1: length (Cases_list)){
+
+  working_case<-subset(DATA, Case==Cases_list[j])
+  
+  
+      for (i in 1:max (working_case$Object)) {
+  
+        working_cell <- subset (working_case, Object==i)
+        
+        working_cell$IntensitySmooth <- ksmooth(working_cell$Frame, working_cell$Intensity, bandwidth = 10)$y # Choose the size of the smoothing
+
+
+          if (i==1){
+                working_case_together <- working_cell
+                }  else {
+                working_case_together <- rbind (working_case_together, working_cell)
+                }
+      }
+  
+  
+  if (j==1){
+          Cases_together <- working_case_together
+          }  else {
+          Cases_together <- rbind (Cases_together, working_case_together)
+          }
+
+}
+
+ # All the Intensity.csv tables will have the same column.
+ Cases_together$Intensity<-NULL # So we remove the input Intensity
+ names(Cases_together)[names(Cases_together)=='IntensitySmooth'] <- "Intensity" # And rename the smoothed. Only by the name of the file is known this is smoothed.  
+
+ # Save table
+ # Can be changed to csv2 instead of csv
+ directory=getwd()
+ Filename=file.path(directory,paste(tools::file_path_sans_ext(File),'_Smooth.csv', sep=''))
+ write.csv (Cases_together, Filename, row.names = FALSE)
+  
+```
+
+    
