@@ -1,0 +1,535 @@
+---
+title: "Intensity analysis"
+output:
+  html_document:
+    df_print: paged
+    theme: cerulean
+    toc: yes
+    toc_float:
+      collapsed: no
+  pdf_document:
+    toc: yes
+---
+
+# Choose Path and File
+```{r}
+#################################
+##        Variables            ##
+##                             ##
+##    Path                     ##
+##    File                     ##
+##                             ##
+#################################
+
+Path='C:/Users/m/Desktop/GCaMP_CogRx/'
+File="All_Experiments_BaseTreat_DeltaF_Peaks.csv"
+
+
+```
+
+# Required libraries
+```{r}
+
+library(readr)
+library(plyr)
+library(forcats)
+library(lme4)
+library(ggplot2)
+library(stargazer)
+library(lmerTest)
+library(rcompanion)
+library(dplyr)
+library(tidyverse)
+library(emmeans)
+library(reshape2)
+library(tidyr)
+library(qwraps2)
+library(arsenal)
+library(table1)
+library(plotrix)
+library(ggResidpanel)
+library(corrplot)
+library(data.table)
+library(GGally)
+library(ggpubr)
+
+#install.packages("corrplot")
+#source("http://www.sthda.com/upload/rquery_cormat.r")
+
+#install.packages("GGally")
+#source("https://raw.githubusercontent.com/briatte/ggcorr/master/ggcorr.R")
+
+
+```
+
+# Set working directory (for .rmd scripts)
+```{r setup}
+
+knitr::opts_knit$set(root.dir = Path)
+
+```
+
+# Load File
+```{r}
+
+Absolute <- read_csv(file.path(Path,File), col_types = cols (Case = 'f'))
+
+
+```
+
+
+# OPTIONAL - Filter by size or intensity
+```{r}
+
+# Absolute <- Absolute[!(Absolute$Area<50),]
+# Absolute <- Absolute[!(Absolute$max_Intensity<10),]
+# 
+# 
+ Absolute_Treatment <- Absolute[!(Absolute$Treatment=='baseline'),]
+# Absolute_Treatment <- Absolute_Treatment[!(Absolute_Treatment$Area<50),]
+# Absolute_Treatment <- Absolute_Treatment[!(Absolute_Treatment$max_Intensity<5),]
+
+# #remove inf and nan 
+# library(IDPmisc)
+# Absolute_Treatment <- NaRV.omit(Absolute_Treatment)
+
+```
+
+
+# STATS
+
+## Absolute Intensities Baseline and Treated
+
+### 1.Max intensity
+```{r}
+                                  
+# Linear model + posthoc
+ME_peak_number2<- lmer(max_Intensity~Abeta*Drug*Treatment+(1|Case)+(1|Experiment),data = Absolute)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Transform to improve data
+Absolute$max_Intensity_ratio_tukey <- transformTukey(Absolute$max_Intensity)
+ME_peak_number2<- lmer(max_Intensity_ratio_tukey~Abeta*Drug*Treatment+(1|Case)+(1|Experiment),data = Absolute)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Boxplot
+Absolute %>%
+  ggplot( aes(x=Abeta, y=max_Intensity, fill=Treatment)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Drug)
+
+# Boxplot
+Absolute %>%
+  ggplot( aes(x=Drug, y=max_Intensity, fill=Abeta)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Experiment)
+
+
+
+```
+
+
+
+### 2.Mean intensity
+```{r}
+                                  
+# Linear model + posthoc
+ME_peak_number2<- lmer(mean_Intensity~Abeta*Drug*Treatment+(1|Case)+(1|Experiment),data = Absolute)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Transform to improve data
+Absolute$mean_Intensity_ratio_tukey <- transformTukey(Absolute$mean_Intensity)
+ME_peak_number2<- lmer(mean_Intensity_ratio_tukey~Abeta*Drug*Treatment+(1|Case)+(1|Experiment),data = Absolute)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Boxplot
+Absolute %>%
+  ggplot( aes(x=Abeta, y=mean_Intensity, fill=Treatment)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Drug)
+
+# Boxplot
+Absolute %>%
+  ggplot( aes(x=Abeta, y=mean_Intensity, fill=Drug)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Treatment)
+
+# # Boxplot
+#   ggpaired(Absolute, x='Abeta',y='Min_Intensity', color = "Abeta", line.color = "gray", line.size = 0.4,
+#          palette = "jco")+
+#   stat_compare_means(label = "p.format")+
+#   facet_wrap(~  Drug  ~ Treatment)
+
+
+```
+
+
+### 3.Min intensity
+```{r}
+                                  
+# Linear model + posthoc
+ME_peak_number2<- lmer(min_Intensity~Abeta*Drug*Treatment+(1|Case)+(1|Experiment),data = Absolute)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Transform to improve data
+Absolute$min_Intensity_ratio_tukey <- transformTukey(Absolute$min_Intensity)
+ME_peak_number2<- lmer(min_Intensity_ratio_tukey~Abeta*Drug*Treatment+(1|Case)+(1|Experiment),data = Absolute)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Boxplot
+Absolute %>%
+  ggplot( aes(x=Abeta, y=min_Intensity, fill=Treatment)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Drug)
+
+# Boxplot
+Absolute %>%
+  ggplot( aes(x=Drug, y=min_Intensity, fill=Abeta)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Treatment)
+
+    
+```
+
+### 4. Peak number
+```{r}
+                                  
+# Linear model + posthoc
+ME_peak_number2<- lmer(Peak_number~Abeta*Drug*Treatment+(1|Case)+(1|Experiment),data = Absolute)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Transform to improve data
+Absolute$Peak_number_ratio_tukey <- transformTukey(Absolute$Peak_number)
+ME_peak_number2<- lmer(Peak_number_ratio_tukey~Abeta*Drug*Treatment+(1|Case)+(1|Experiment),data = Absolute)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Boxplot
+Absolute %>%
+  ggplot( aes(x=Abeta, y=Peak_number, fill=Treatment)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Drug)
+
+# Boxplot
+Absolute %>%
+  ggplot( aes(x=Drug, y=Peak_number, fill=Abeta)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Treatment)
+
+
+    
+```
+
+### 5. Peak Frequency
+```{r}
+                                  
+# Linear model + posthoc
+ME_peak_frequency2<- lmer(Peak_frequency~Abeta*Drug*Treatment+(1|Case)+(1|Experiment),data = Absolute)
+summary(ME_peak_frequency2)
+resid_panel(ME_peak_frequency2)
+anova(ME_peak_frequency2)
+emmeans(ME_peak_frequency2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Transform to improve data
+Absolute$Peak_frequency_ratio_tukey <- transformTukey(Absolute$Peak_frequency)
+ME_peak_frequency2<- lmer(Peak_frequency_ratio_tukey~Abeta*Drug*Treatment+(1|Case)+(1|Experiment),data = Absolute)
+summary(ME_peak_frequency2)
+resid_panel(ME_peak_frequency2)
+anova(ME_peak_frequency2)
+emmeans(ME_peak_frequency2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Boxplot
+Absolute %>%
+  ggplot( aes(x=Abeta, y=Peak_frequency, fill=Treatment)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Drug)
+
+# Boxplot
+Absolute %>%
+  ggplot( aes(x=Drug, y=Peak_frequency, fill=Abeta)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Treatment)
+
+    
+```
+
+
+### 6. Peak Median Width
+```{r}
+                                  
+# Linear model + posthoc
+ME_peaks_median_width2<- lmer(peaks_median_width~Abeta*Drug*Treatment+(1|Case)+(1|Experiment),data = Absolute)
+summary(ME_peaks_median_width2)
+resid_panel(ME_peaks_median_width2)
+anova(ME_peaks_median_width2)
+emmeans(ME_peaks_median_width2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Transform to improve data
+Absolute$peaks_median_width_ratio_tukey <- transformTukey(Absolute$peaks_median_width)
+ME_peaks_median_width2<- lmer(peaks_median_width_ratio_tukey~Abeta*Drug*Treatment+(1|Case)+(1|Experiment),data = Absolute)
+summary(ME_peaks_median_width2)
+resid_panel(ME_peaks_median_width2)
+anova(ME_peaks_median_width2)
+emmeans(ME_peaks_median_width2, pairwise ~ Abeta*Drug*Treatment, adjust="tukey")
+
+# Boxplot
+Absolute %>%
+  ggplot( aes(x=Abeta, y=peaks_median_width, fill=Treatment)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Drug)
+
+# Boxplot
+Absolute %>%
+  ggplot( aes(x=Drug, y=peaks_median_width, fill=Abeta)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)+
+  facet_wrap(~  Treatment)
+
+    
+```
+
+
+
+
+## Absolute Intensities Treatment only
+
+### 1.Max intensity
+```{r}
+                                  
+# Linear model + posthoc
+ME_peak_number2<- lmer(max_Intensity~Abeta*Drug+(1|Case)+(1|Experiment),data = Absolute_Treatment)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Transform to improve data
+Absolute_Treatment$max_Intensity_ratio_tukey <- transformTukey(Absolute_Treatment$max_Intensity)
+ME_peak_number2<- lmer(max_Intensity_ratio_tukey~Abeta*Drug+(1|Case)+(1|Experiment),data = Absolute_Treatment)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Boxplot
+Absolute_Treatment %>%
+  ggplot( aes(x=Abeta, y=max_Intensity, fill=Drug)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)
+
+# Boxplot
+Absolute_Treatment %>%
+  ggplot( aes(x=Drug, y=max_Intensity, fill=Abeta)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)
+
+
+
+```
+
+
+
+### 2.Mean intensity
+```{r}
+                                  
+# Linear model + posthoc
+ME_peak_number2<- lmer(mean_Intensity~Abeta*Drug+(1|Case)+(1|Experiment),data = Absolute_Treatment)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Transform to improve data
+Absolute_Treatment$mean_Intensity_ratio_tukey <- transformTukey(Absolute_Treatment$mean_Intensity)
+ME_peak_number2<- lmer(mean_Intensity_ratio_tukey~Abeta*Drug+(1|Case)+(1|Experiment),data = Absolute_Treatment)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Boxplot
+Absolute_Treatment %>%
+  ggplot( aes(x=Abeta, y=mean_Intensity, fill=Drug)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)
+
+# Boxplot
+Absolute_Treatment %>%
+  ggplot( aes(x=Drug, y=mean_Intensity, fill=Abeta)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)
+
+
+
+```
+
+
+### 3.Min intensity
+```{r}
+                                  
+# Linear model + posthoc
+ME_peak_number2<- lmer(min_Intensity~Abeta*Drug+(1|Case)+(1|Experiment),data = Absolute_Treatment)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Transform to improve data
+Absolute_Treatment$min_Intensity_ratio_tukey <- transformTukey(Absolute_Treatment$min_Intensity)
+ME_peak_number2<- lmer(min_Intensity_ratio_tukey~Abeta*Drug+(1|Case)+(1|Experiment),data = Absolute_Treatment)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Boxplot
+Absolute_Treatment %>%
+  ggplot( aes(x=Abeta, y=min_Intensity, fill=Drug)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)
+
+# Boxplot
+Absolute_Treatment %>%
+  ggplot( aes(x=Drug, y=min_Intensity, fill=Abeta)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)
+
+    
+```
+
+    
+### 4. Peak number
+```{r}
+                                  
+# Linear model + posthoc
+ME_peak_number2<- lmer(Peak_number~Abeta*Drug+(1|Case)+(1|Experiment),data = Absolute_Treatment)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Transform to improve data
+Absolute_Treatment$Peak_number_ratio_tukey <- transformTukey(Absolute_Treatment$Peak_number)
+ME_peak_number2<- lmer(Peak_number_ratio_tukey~Abeta*Drug+(1|Case)+(1|Experiment),data = Absolute_Treatment)
+summary(ME_peak_number2)
+resid_panel(ME_peak_number2)
+anova(ME_peak_number2)
+emmeans(ME_peak_number2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Boxplot
+Absolute_Treatment %>%
+  ggplot( aes(x=Abeta, y=Peak_number, fill=Drug)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)
+
+
+# Boxplot
+Absolute_Treatment %>%
+  ggplot( aes(x=Drug, y=Peak_number, fill=Abeta)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)
+
+
+    
+```
+
+### 5. Peak Frequency
+```{r}
+                                  
+# Linear model + posthoc
+ME_peak_frequency2<- lmer(Peak_frequency~Abeta*Drug+(1|Case)+(1|Experiment),data = Absolute_Treatment)
+summary(ME_peak_frequency2)
+resid_panel(ME_peak_frequency2)
+anova(ME_peak_frequency2)
+emmeans(ME_peak_frequency2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Transform to improve data
+Absolute_Treatment$Peak_frequency_ratio_tukey <- transformTukey(Absolute_Treatment$Peak_frequency)
+ME_peak_frequency2<- lmer(Peak_frequency_ratio_tukey~Abeta*Drug+(1|Case)+(1|Experiment),data = Absolute_Treatment)
+summary(ME_peak_frequency2)
+resid_panel(ME_peak_frequency2)
+anova(ME_peak_frequency2)
+emmeans(ME_peak_frequency2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Boxplot
+Absolute_Treatment %>%
+  ggplot( aes(x=Abeta, y=Peak_frequency, fill=Drug)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)
+
+# Boxplot
+Absolute_Treatment %>%
+  ggplot( aes(x=Drug, y=Peak_frequency, fill=Abeta)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)
+
+    
+```
+
+
+### 6. Peak Median Width
+```{r}
+                                  
+# Linear model + posthoc
+ME_peaks_median_width2<- lmer(peaks_median_width~Abeta*Drug+(1|Case)+(1|Experiment),data = Absolute_Treatment)
+summary(ME_peaks_median_width2)
+resid_panel(ME_peaks_median_width2)
+anova(ME_peaks_median_width2)
+emmeans(ME_peaks_median_width2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Transform to improve data
+Absolute_Treatment$peaks_median_width_ratio_tukey <- transformTukey(Absolute_Treatment$peaks_median_width)
+ME_peaks_median_width2<- lmer(peaks_median_width_ratio_tukey~Abeta*Drug+(1|Case)+(1|Experiment),data = Absolute_Treatment)
+summary(ME_peaks_median_width2)
+resid_panel(ME_peaks_median_width2)
+anova(ME_peaks_median_width2)
+emmeans(ME_peaks_median_width2, pairwise ~ Abeta*Drug, adjust="tukey")
+
+# Boxplot
+Absolute_Treatment %>%
+  ggplot( aes(x=Abeta, y=peaks_median_width, fill=Drug)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)
+
+# Boxplot
+Absolute_Treatment %>%
+  ggplot( aes(x=Drug, y=peaks_median_width, fill=Abeta)) +
+  geom_boxplot() +
+  geom_boxplot(outlier.size = -1, width=0.75)
+
+    
+```
